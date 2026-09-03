@@ -1,0 +1,75 @@
+#!/usr/bin/env php
+<?php
+
+declare(strict_types=1);
+
+use EDocxParser\DocxReader;
+
+require $_composer_autoload_path ?? __DIR__ . '/../vendor/autoload.php';
+
+/**
+ * Print command usage.
+ */
+function printUsage(): void
+{
+    $command = basename($_SERVER['argv'][0]);
+    fwrite(STDOUT, <<<TEXT
+Usage:
+  {$command} [--html|--xml] <path-to-docx>
+
+Options:
+  --html    Output parsed HTML (default)
+  --xml     Output word/document.xml
+  -h, --help
+            Show this help
+
+TEXT);
+}
+
+$arguments = array_slice($_SERVER['argv'], 1);
+
+if ($arguments === [] || in_array('-h', $arguments, true) || in_array('--help', $arguments, true)) {
+    printUsage();
+    exit($arguments === [] ? 1 : 0);
+}
+
+$mode = 'html';
+$filePath = null;
+
+foreach ($arguments as $argument) {
+    if ($argument === '--html') {
+        $mode = 'html';
+    } elseif ($argument === '--xml') {
+        $mode = 'xml';
+    } elseif (str_starts_with($argument, '-')) {
+        fwrite(STDERR, "Unknown option: {$argument}\n\n");
+        printUsage();
+        exit(1);
+    } elseif ($filePath === null) {
+        $filePath = $argument;
+    } else {
+        fwrite(STDERR, "Only one DOCX file can be read at a time.\n\n");
+        printUsage();
+        exit(1);
+    }
+}
+
+if ($filePath === null) {
+    fwrite(STDERR, "A DOCX file path is required.\n\n");
+    printUsage();
+    exit(1);
+}
+
+if (!is_file($filePath) || !is_readable($filePath)) {
+    fwrite(STDERR, "DOCX file does not exist or is not readable: {$filePath}\n");
+    exit(1);
+}
+
+try {
+    $reader = DocxReader::create($filePath);
+    $output = $mode === 'xml' ? $reader->readXml() : $reader->readHtml();
+    fwrite(STDOUT, $output . "\n");
+} catch (Throwable $exception) {
+    fwrite(STDERR, "Unable to read DOCX file: {$exception->getMessage()}\n");
+    exit(1);
+}

@@ -1,0 +1,104 @@
+#!/usr/bin/env php
+<?php
+
+declare(strict_types=1);
+
+use EDocxParser\DocxParser;
+use EDocxParser\Formatter\StripBoldFormatter;
+use EDocxParser\Formatter\StripItalicFormatter;
+use EDocxParser\Formatter\StripUnderlineFormatter;
+
+require $_composer_autoload_path ?? __DIR__ . '/../vendor/autoload.php';
+
+/**
+ * Print command usage.
+ */
+function printUsage(): void
+{
+    $command = basename($_SERVER['argv'][0]);
+    fwrite(STDOUT, <<<TEXT
+Usage:
+  {$command} [options] <path-to-docx>
+
+Options:
+  --strip-bold        Remove <b> tags
+  --strip-italic      Remove <i> tags
+  --strip-underline   Remove <u> tags
+  --strip-all         Remove all three formatting tags
+  -h, --help          Show this help
+
+TEXT);
+}
+
+$arguments = array_slice($_SERVER['argv'], 1);
+
+if ($arguments === [] || in_array('-h', $arguments, true) || in_array('--help', $arguments, true)) {
+    printUsage();
+    exit($arguments === [] ? 1 : 0);
+}
+
+$filePath = null;
+$stripBold = false;
+$stripItalic = false;
+$stripUnderline = false;
+
+foreach ($arguments as $argument) {
+    switch ($argument) {
+        case '--strip-bold':
+            $stripBold = true;
+            break;
+        case '--strip-italic':
+            $stripItalic = true;
+            break;
+        case '--strip-underline':
+            $stripUnderline = true;
+            break;
+        case '--strip-all':
+            $stripBold = $stripItalic = $stripUnderline = true;
+            break;
+        default:
+            if (str_starts_with($argument, '-')) {
+                fwrite(STDERR, "Unknown option: {$argument}\n\n");
+                printUsage();
+                exit(1);
+            }
+
+            if ($filePath !== null) {
+                fwrite(STDERR, "Only one DOCX file can be parsed at a time.\n\n");
+                printUsage();
+                exit(1);
+            }
+
+            $filePath = $argument;
+    }
+}
+
+if ($filePath === null) {
+    fwrite(STDERR, "A DOCX file path is required.\n\n");
+    printUsage();
+    exit(1);
+}
+
+if (!is_file($filePath) || !is_readable($filePath)) {
+    fwrite(STDERR, "DOCX file does not exist or is not readable: {$filePath}\n");
+    exit(1);
+}
+
+try {
+    $parser = DocxParser::create($filePath);
+
+    if ($stripBold) {
+        $parser->addFormatter(new StripBoldFormatter());
+    }
+    if ($stripItalic) {
+        $parser->addFormatter(new StripItalicFormatter());
+    }
+    if ($stripUnderline) {
+        $parser->addFormatter(new StripUnderlineFormatter());
+    }
+
+    fwrite(STDOUT, $parser->parse() . "\n");
+} catch (Throwable $exception) {
+    fwrite(STDERR, "Unable to parse DOCX file: {$exception->getMessage()}\n");
+    exit(1);
+}
