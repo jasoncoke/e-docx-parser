@@ -8,10 +8,14 @@
             "EDocxParser\\": "src/"
         }
     },
+    "bin": [
+        "bin/docx-reader",
+        "bin/docx-parser"
+    ],
     "authors": [
         {
-            "name": "Author",
-            "email": "author@example.com"
+            "name": "Ethen",
+            "email": "hqk616@163.com"
         }
     ],
     "require": {
@@ -24,5 +28,9 @@
     },
     "require-dev": {
         "phpunit/phpunit": "^13.3"
+    },
+    "scripts": {
+        "docx:read": "@php bin/docx-reader",
+        "docx:parse": "@php bin/docx-parser"
     }
 }
